@@ -21,9 +21,19 @@ public class ServiceHandler implements Handler {
 
         Flux
                 .merge(r1, r2)
-                //.timeout(Duration.ofMillis(15000L))
-                .map(sw)
-                .blockLast();
+                  .timeout(Duration.ofMillis(15000L))
+                .map(response -> {
+                    switch (response) {
+                        case Response.Failure ignored -> new ApplicationStatusResponse.Failure(Duration.ofMillis(0), 1);
+                        case Response.RetryAfter retryAfter ->
+                                new ApplicationStatusResponse.Failure(retryAfter.delay(), 1);
+                        case Response.Success success ->
+                                new ApplicationStatusResponse.Success(success.applicationId(), success.applicationStatus());
+                        default -> throw new IllegalStateException("Unexpected value: " + response);
+                    }
+                    return Mono.empty();
+                })
+                .blockFirst();
         return null;
     }
 
@@ -33,8 +43,9 @@ public class ServiceHandler implements Handler {
         public ApplicationStatusResponse apply(Response response) {
             switch (response) {
                 case Response.Failure ignored -> new ApplicationStatusResponse.Failure(Duration.ofMillis(0), 1);
-                case Response.RetryAfter retryAfter -> new ApplicationStatusResponse.Failure(Duration.ofMillis(0), 1);
-                //  case Response.Success success -> new ApplicationStatusResponse.Success(response.applicationId);
+                case Response.RetryAfter retryAfter -> new ApplicationStatusResponse.Failure(retryAfter.delay(), 1);
+                case Response.Success success ->
+                        new ApplicationStatusResponse.Success(success.applicationId(), success.applicationStatus());
                 default -> throw new IllegalStateException("Unexpected value: " + response);
             }
             return null;
