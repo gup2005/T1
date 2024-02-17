@@ -20,21 +20,12 @@ public class ServiceHandler implements Handler {
         Mono<Response> r2 = Mono.just(client.getApplicationStatus2(id));
 
         Flux
-                .merge(r1,r2)
-                .timeout(Duration.ofMillis(15000L))
-                        .map(response -> {
-                            switch (response) {
-                                case Response.Failure ignored -> new ApplicationStatusResponse.Failure(Duration.ofMillis(0), 1);
-                                case Response.RetryAfter retryAfter -> new ApplicationStatusResponse.Failure(Duration.ofMillis(0), 1);
-                                case Response.Success success -> new ApplicationStatusResponse.Success(response.applicationId);
-                                default -> throw new IllegalStateException("Unexpected value: " + response);
-                            }
-                        });
-
-
-
+                .merge(r1, r2)
+                //.timeout(Duration.ofMillis(15000L))
+                .map(sw)
+                .blockLast();
+        return null;
     }
-
 
 
     Function<Response, ApplicationStatusResponse> sw = new Function<Response, ApplicationStatusResponse>() {
@@ -43,23 +34,11 @@ public class ServiceHandler implements Handler {
             switch (response) {
                 case Response.Failure ignored -> new ApplicationStatusResponse.Failure(Duration.ofMillis(0), 1);
                 case Response.RetryAfter retryAfter -> new ApplicationStatusResponse.Failure(Duration.ofMillis(0), 1);
-              //  case Response.Success success -> new ApplicationStatusResponse.Success(response.applicationId);
+                //  case Response.Success success -> new ApplicationStatusResponse.Success(response.applicationId);
                 default -> throw new IllegalStateException("Unexpected value: " + response);
             }
             return null;
         }
     };
 
-   /*     return webClient.get()
-                .uri("/employees")
-            .retrieve()
-            .bodyToFlux(Employee.class)
-            .transform(m -> retryWithBackoffTimeout(m, Duration.ofMillis(50), Duration.ofMillis(500), 10));
-}
-
-    public <T> Flux<T> retryWithBackoffTimeout(Flux<T> flux, Duration timeout, Duration maxTimeout, int factor) {
-        return mono.timeout(timeout)
-                .onErrorResume(e -> timeout.multipliedBy(factor).compareTo(maxTimeout) < 1,
-                        e -> retryWithBackoffTimeout(mono, timeout.multipliedBy(factor), maxTimeout, factor));
-    }*/
 }
